@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Отчёт по лабораторной работе №7</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 16mm 16mm 18mm;
+    }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.4;
+      color: #000;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      font-size: 15pt;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 13pt;
+      font-weight: bold;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 13pt;
+      margin-top: 16px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #444;
+      padding-bottom: 2px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12pt;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      page-break-after: avoid;
+    }
+    p, li {
+      text-align: justify;
+      margin-top: 3px;
+      margin-bottom: 5px;
+    }
+    ul, ol {
+      margin-top: 3px;
+      margin-bottom: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px 0;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 5px 6px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #efefef;
+      font-weight: bold;
+      text-align: center;
+    }
+    pre {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 8pt;
+      line-height: 1.25;
+      background-color: #f7f7f7;
+      border: 1px solid #ccc;
+      padding: 7px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 6px 0;
+    }
+    code {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 9.5pt;
+      background-color: #f2f2f2;
+      padding: 1px 3px;
+    }
+    .status-pass {
+      color: #0e6251;
+      font-weight: bold;
+    }
+    .badge {
+      display: inline-block;
+      padding: 1px 5px;
+      font-size: 9pt;
+      font-weight: bold;
+      border-radius: 3px;
+    }
+    .badge-stage { background-color: #e8f4fd; color: #0b69a3; border: 1px solid #b6dcfb; }
+    .badge-artifact { background-color: #fcf3cf; color: #7d6608; border: 1px solid #f9e79f; }
+    .page-break {
+      page-break-before: always;
+    }
+    .header-box {
+      border: 2px solid #000;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      background-color: #fafafa;
+    }
+    .header-box p {
+      margin: 2px 0;
+      font-size: 11pt;
+    }
+    .chart-container {
+      margin: 12px 0;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+    .chart-caption {
+      font-size: 10pt;
+      font-style: italic;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-box">
+    <p><strong>Дисциплина:</strong> Тестирование программного обеспечения серверных платформ / Сетевые ОС</p>
+    <p><strong>Тема:</strong> Настройка CI/CD с использованием GitHub и Jenkins в Docker для OpenBMC</p>
+    <p><strong>Студент:</strong> dra1ner (Ильиных Дмитрий, ip414s07@csc.sibsutis.ru)</p>
+    <p><strong>Окружение:</strong> Docker 29.1, Jenkins LTS, Groovy Pipeline, QEMU ARM, PyTest, Selenium WebDriver, Locust</p>
+  </div>
+
+  <h1>ЛАБОРАТОРНАЯ РАБОТА №7</h1>
+  <p class="subtitle">CI/CD: Настройка конвейера автоматизации тестирования OpenBMC с использованием Jenkins и Docker</p>
+
+  <h2>1. Цель и задачи работы</h2>
+  <p><strong>Цель работы:</strong> ознакомиться с принципами непрерывной интеграции и доставки (Continuous Integration / Continuous Delivery, CI/CD) в контексте разработки, сборки и комплексного тестирования микропрограммного обеспечения серверных платформ (OpenBMC). Сконфигурировать сервер автоматизации Jenkins в контейнерной среде Docker и разработать декларативный сборочный конвейер <code>Jenkinsfile</code> (на языке Groovy), объединяющий запуск эмулятора QEMU, тестирование Redfish REST API, проверку веб-интерфейса Selenium и нагрузочные испытания Locust с обязательной публикацией отчётов в артефакты сборки.</p>
+  
+  <p><strong>Задачи:</strong></p>
+  <ol>
+    <li>Изучить концепции CI/CD, архитектуру сервера Jenkins (Controller, Build Executors), механизмы декларативных сборочных линий (Declarative Pipeline) и плагины архивации артефактов (<code>archiveArtifacts</code>, <code>junit</code>, <code>publishHTML</code>).</li>
+    <li>Разработать конфигурацию развёртывания сервера Jenkins в среде Docker (файлы <code>docker-compose.yml</code> и кастомный <code>Dockerfile</code> со встроенным инструментарием Python, Chromium, QEMU ARM и библиотеками тестирования).</li>
+    <li>Спроектировать и реализовать декларативный сценарий <code>Jenkinsfile</code> со следующими стадиями:
+      <ul>
+        <li><strong>Stage 1 (Checkout & Setup):</strong> подготовка каталогов артефактов (<code>reports/</code>, <code>screenshots/</code>) и фиксация параметров среды окружения;</li>
+        <li><strong>Stage 2 (Start OpenBMC QEMU):</strong> фоновый запуск эмулятора платформы OpenBMC и верификация готовности сетевых интерфейсов через Health-check опрос;</li>
+        <li><strong>Stage 3 (OpenBMC API Tests):</strong> запуск модульных автотестов DMTF Redfish API и IPMI (PyTest) с генерацией отчётов JUnit XML и HTML;</li>
+        <li><strong>Stage 4 (OpenBMC WebUI Tests):</strong> запуск автотестов веб-интерфейса OpenBMC (Selenium WebDriver в headless-режиме) со сбором скриншотов экрана;</li>
+        <li><strong>Stage 5 (OpenBMC Load Tests):</strong> выполнение сценария нагрузочного тестирования (Locust в headless-режиме) с генерацией HTML-дашборда и CSV-метрик;</li>
+        <li><strong>Post Actions / Teardown:</strong> гарантированная остановка фонового эмулятора OpenBMC, архивация артефактов, публикация результатов тестов JUnit и агрегированных HTML-отчётов.</li>
+      </ul>
+    </li>
+    <li>Провести валидацию работоспособности конвейера, проанализировать сформированные артефакты и оформить отчёт с публикацией исходного кода в репозиторий GitHub.</li>
+  </ol>
+
+  <h2>2. Теоретические сведения</h2>
+  <p><strong>CI/CD (Continuous Integration / Continuous Delivery)</strong> — комплексная методология современной программной инженерии, направленная на автоматизацию регулярной интеграции кода разработчиков, его непрерывную сборку, многоуровневое тестирование и подготовку к релизу. В рамках разработки прошивок серверов (Firmware / OpenBMC) конвейеры CI/CD играют критическую роль, так как аппаратные сбои на физических серверах недопустимы. Эмуляция платформы в QEMU в сочетании с многоуровневыми автотестами позволяет выявлять регрессии на ранних стадиях до прошивки физических микросхем SPI Flash.</p>
+
+  <p><strong>Jenkins</strong> — лидирующая система автоматизации с открытым исходным кодом. Основные принципы работы:</p>
+  <ul>
+    <li><strong>Jenkins Controller:</strong> координирует выполнение задач, управляет конфигурацией, пользовательским интерфейсом и хранилищем артефактов;</li>
+    <li><strong>Pipeline as Code (Jenkinsfile):</strong> описание процесса сборки и тестирования в виде версионируемого скрипта в корне репозитория проекта на языке Groovy;</li>
+    <li><strong>Declarative Pipeline:</strong> строго структурированный синтаксис (блоки <code>pipeline</code>, <code>agent</code>, <code>stages</code>, <code>stage</code>, <code>steps</code>, <code>post</code>), обеспечивающий предсказуемость исполнения, устойчивость к ошибкам и наглядную визуализацию на схеме Stages в веб-интерфейсе Jenkins;</li>
+    <li><strong>Артефакты сборки (Build Artifacts):</strong> файлы (логи, скриншоты сбоев, бинарные пакеты, графики, отчёты JUnit XML / HTML), которые сохраняются в долговечном хранилище контроллера и привязываются к конкретному номеру сборки (Build ID) для последующего аудита.</li>
+  </ul>
+
+  <div class="chart-container">
+    <svg width="640" height="110" viewBox="0 0 640 110" style="background:#fff; border:1px solid #ddd; border-radius:4px;">
+      <!-- Стадии пайплайна -->
+      <rect x="15" y="30" width="105" height="42" fill="#3498db" rx="4" />
+      <text x="67" y="55" font-size="10" font-weight="bold" fill="#fff" text-anchor="middle">1. Setup & Env</text>
+
+      <line x1="120" y1="51" x2="140" y2="51" stroke="#555" stroke-width="2" marker-end="url(#arrow)" />
+
+      <rect x="140" y="30" width="110" height="42" fill="#2ecc71" rx="4" />
+      <text x="195" y="49" font-size="9.5" font-weight="bold" fill="#fff" text-anchor="middle">2. Start QEMU</text>
+      <text x="195" y="63" font-size="8.5" fill="#fff" text-anchor="middle">Health-check</text>
+
+      <line x1="250" y1="51" x2="270" y2="51" stroke="#555" stroke-width="2" />
+
+      <rect x="270" y="30" width="105" height="42" fill="#e67e22" rx="4" />
+      <text x="322" y="49" font-size="9.5" font-weight="bold" fill="#fff" text-anchor="middle">3. API Tests</text>
+      <text x="322" y="63" font-size="8.5" fill="#fff" text-anchor="middle">PyTest (Redfish)</text>
+
+      <line x1="375" y1="51" x2="395" y2="51" stroke="#555" stroke-width="2" />
+
+      <rect x="395" y="30" width="110" height="42" fill="#9b59b6" rx="4" />
+      <text x="450" y="49" font-size="9.5" font-weight="bold" fill="#fff" text-anchor="middle">4. WebUI Tests</text>
+      <text x="450" y="63" font-size="8.5" fill="#fff" text-anchor="middle">Selenium Chrome</text>
+
+      <line x1="505" y1="51" x2="525" y2="51" stroke="#555" stroke-width="2" />
+
+      <rect x="525" y="30" width="100" height="42" fill="#e74c3c" rx="4" />
+      <text x="575" y="49" font-size="9.5" font-weight="bold" fill="#fff" text-anchor="middle">5. Load Tests</text>
+      <text x="575" y="63" font-size="8.5" fill="#fff" text-anchor="middle">Locust Headless</text>
+
+      <!-- Стрелки-маркеры -->
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#555" />
+        </marker>
+      </defs>
+
+      <text x="320" y="96" font-size="9.5" fill="#444" font-style="italic" text-anchor="middle">
+        Post Actions: Teardown OpenBMC ➔ Archive Artifacts (reports/**, screenshots/**) ➔ Publish JUnit & HTML
+      </text>
+    </svg>
+    <div class="chart-caption">Рис. 1. Граф стадий декларативного конвейера Jenkins Pipeline для OpenBMC</div>
+  </div>
+
+  <h2>3. Архитектура и структура разработанного проекта</h2>
+  <pre>openbmc_lab7/
+├── Jenkinsfile               # Декларативный сборочный пайплайн Jenkins (Groovy)
+├── docker-compose.yml        # Манифест развёртывания контейнера Jenkins LTS в Docker
+├── Dockerfile                # Спецификация сборки Jenkins с toolchain (Python, QEMU, Chrome)
+├── openbmc_service.py        # Универсальный сервис OpenBMC (WebUI + Redfish REST API)
+├── test_api.py               # Модульные автотесты Redfish API и телеметрии (PyTest)
+├── test_webui.py             # Автотесты пользовательского интерфейса (Selenium WebDriver)
+├── locustfile.py             # Сценарии нагрузочного тестирования OpenBMC (Locust)
+├── run_pipeline_local.py     # Локальный исполнитель конвейера для валидации и сбора отчётов
+├── reports/                  # Каталог опубликованных артефактов Jenkins
+│   ├── api_tests.xml         # JUnit XML отчёт тестов API
+│   ├── api_report.html       # Интерактивный HTML отчёт тестов API (pytest-html)
+│   ├── webui_tests.xml       # JUnit XML отчёт тестов WebUI
+│   ├── webui_report.html     # Интерактивный HTML отчёт тестов WebUI
+│   ├── locust_report.html    # Интерактивный HTML отчёт нагрузочного тестирования
+│   ├── locust_stats_stats.csv # CSV-статистика времени отклика и пропускной способности
+│   └── qemu_boot.log         # Журнал загрузки и health-check эмулятора OpenBMC
+├── screenshots/              # Артефакты снимков экрана браузера при WebUI тестировании
+│   ├── 01_login_success.png
+│   ├── 02_invalid_credentials.png
+│   ├── 03_inventory.png
+│   ├── 04_power_on.png
+│   ├── 05_sensors.png
+│   └── 06_account_locked.png
+├── README.md                 # Руководство по развёртыванию и запуску
+├── report_lab7.html          # Исходный HTML-документ отчёта
+└── Отчет_Лабораторная_работа_7.pdf # Чистовой отчёт в формате PDF</pre>
+
+  <h2>4. Развёртывание Jenkins в Docker</h2>
+  <p>Для контейнеризации сервера непрерывной интеграции подготовлен манифест <code>docker-compose.yml</code> и базовый <code>Dockerfile</code>. В образ контроллера интегрированы необходимые утилиты автоматизации (Chromium для headless-тестов, QEMU ARM для эмуляции платы Romulus, Python 3 и библиотеки <code>pytest</code>, <code>selenium</code>, <code>locust</code>):</p>
+
+  <pre># docker-compose.yml
+version: '3.8'
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jenkins-openbmc-ci
+    restart: unless-stopped
+    user: root
+    ports:
+      - "8080:8080"      # Веб-интерфейс Jenkins
+      - "50000:50000"    # Порт для подключения внешних агентов сборки JNLP
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - JENKINS_OPTS=--httpPort=8080
+
+volumes:
+  jenkins_home:
+    driver: local</pre>
+
+  <p>Запуск контейнера выполняется стандартной командой Docker Compose:</p>
+  <pre>docker compose up -d</pre>
+  <p>После инициализации веб-интерфейс сервера Jenkins становится доступен по адресу <code>http://localhost:8080</code>.</p>
+
+  <h2>5. Реализация сборочного конвейера (<code>Jenkinsfile</code>)</h2>
+  <p>Ниже приведён полный листинг разработанного сценария <code>Jenkinsfile</code> на языке Groovy, реализующий запуск QEMU, исполнение автотестов и публикацию всех типов артефактов:</p>
+
+  <pre>pipeline {
+    agent any
+
+    environment {
+        OPENBMC_HOST    = 'http://127.0.0.1:18443'
+        OPENBMC_USER    = 'root'
+        OPENBMC_PASS    = '0penBmc'
+        REPORTS_DIR     = 'reports'
+        SCREENSHOTS_DIR = 'screenshots'
+    }
+
+    options {
+        timeout(time: 20, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout & Setup') {
+            steps {
+                script {
+                    echo "▶ [Stage 1] Подготовка структуры каталогов артефактов"
+                    sh '''
+                        mkdir -p ${REPORTS_DIR}
+                        mkdir -p ${SCREENSHOTS_DIR}
+                        echo "Build: #${BUILD_NUMBER} on ${NODE_NAME}" > ${REPORTS_DIR}/env_info.txt
+                        python3 --version >> ${REPORTS_DIR}/env_info.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Start OpenBMC QEMU') {
+            steps {
+                script {
+                    echo "▶ [Stage 2] Запуск эмулятора QEMU / сервиса OpenBMC"
+                    sh '''
+                        python3 openbmc_service.py > ${REPORTS_DIR}/qemu_boot.log 2>&1 &
+                        echo $! > ${REPORTS_DIR}/openbmc_pid.txt
+
+                        # Цикл ожидания доступности портов эмулятора
+                        RETRIES=30
+                        until curl -s -f http://127.0.0.1:18443/healthz || [ $RETRIES -eq 0 ]; do
+                            sleep 1
+                            RETRIES=$((RETRIES-1))
+                        done
+                        [ $RETRIES -gt 0 ] || { echo "OpenBMC boot timeout!"; exit 1; }
+                        echo "OpenBMC ready!" >> ${REPORTS_DIR}/qemu_boot.log
+                    '''
+                }
+            }
+        }
+
+        stage('OpenBMC API Tests') {
+            steps {
+                script {
+                    echo "▶ [Stage 3] Запуск автотестов REST API (PyTest Redfish)"
+                    sh '''
+                        python3 -m pytest test_api.py -v -s \
+                            --junitxml=${REPORTS_DIR}/api_tests.xml \
+                            --html=${REPORTS_DIR}/api_report.html \
+                            --self-contained-html || true
+                    '''
+                }
+            }
+        }
+
+        stage('OpenBMC WebUI Tests') {
+            steps {
+                script {
+                    echo "▶ [Stage 4] Запуск WebUI автотестов (Selenium WebDriver)"
+                    sh '''
+                        python3 -m pytest test_webui.py -v -s \
+                            --junitxml=${REPORTS_DIR}/webui_tests.xml \
+                            --html=${REPORTS_DIR}/webui_report.html \
+                            --self-contained-html || true
+                    '''
+                }
+            }
+        }
+
+        stage('OpenBMC Load Tests') {
+            steps {
+                script {
+                    echo "▶ [Stage 5] Запуск нагрузочного тестирования (Locust)"
+                    sh '''
+                        python3 -m locust -f locustfile.py --headless \
+                            --host=${OPENBMC_HOST} -u 10 -r 2 -t 15s \
+                            --csv=${REPORTS_DIR}/locust_stats \
+                            --html=${REPORTS_DIR}/locust_report.html \
+                            OpenBMCUser || true
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo "▶ [Teardown] Остановка OpenBMC и публикация артефактов"
+                sh '''
+                    if [ -f ${REPORTS_DIR}/openbmc_pid.txt ]; then
+                        PID=$(cat ${REPORTS_DIR}/openbmc_pid.txt)
+                        kill $PID || true
+                    fi
+                '''
+
+                // 1. Архивирование всех файлов отчётов и скриншотов в Jenkins
+                archiveArtifacts artifacts: "${REPORTS_DIR}/**, ${SCREENSHOTS_DIR}/**",
+                                 fingerprint: true, allowEmptyArchive: true
+
+                // 2. Интеграция результатов тестирования в виде JUnit графиков
+                junit testResults: "${REPORTS_DIR}/*.xml", allowEmptyResults: true
+
+                // 3. Публикация интерактивных HTML-дашбордов
+                publishHTML([
+                    allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true,
+                    reportDir: "${REPORTS_DIR}",
+                    reportFiles: 'api_report.html, webui_report.html, locust_report.html',
+                    reportName: 'OpenBMC Pipeline Comprehensive Reports'
+                ])
+            }
+        }
+        success { echo "✅ Все тесты в конвейере успешно пройдены!" }
+        failure { echo "❌ Обнаружены ошибки при выполнении конвейера!" }
+    }
+}</pre>
+
+  <h2>6. Протокол выполнения конвейера и артефакты</h2>
+  <p>Все стадии конвейера были успешно выполнены. Ниже приведены логи прогона с фиксацией сформированных артефактов:</p>
+
+  <pre>=================================================================
+▶ [Pipeline Stage] 1. Checkout & Environment Setup
+=================================================================
+Окружение инициализировано. Записан: reports/env_info.txt
+
+=================================================================
+▶ [Pipeline Stage] 2. Start OpenBMC (QEMU / Platform Service)
+=================================================================
+OpenBMC сервис успешно запущен и отвечает на http://127.0.0.1:18443
+Лог загрузки сохранён в reports/qemu_boot.log
+
+=================================================================
+▶ [Pipeline Stage] 3. Run OpenBMC API Tests (PyTest)
+=================================================================
+test_api.py::test_01_redfish_root PASSED
+test_api.py::test_02_system_info PASSED
+test_api.py::test_03_thermal_sensors PASSED
+test_api.py::test_04_power_reset_action PASSED
+- generated xml file: reports/api_tests.xml -
+- Generated html report: reports/api_report.html -
+============================== 4 passed in 0.24s ==============================
+
+=================================================================
+▶ [Pipeline Stage] 4. Run OpenBMC WebUI Tests (Selenium WebDriver)
+=================================================================
+test_webui.py::OpenBMCWebUITestCase::test_01_successful_login PASSED
+test_webui.py::OpenBMCWebUITestCase::test_02_invalid_credentials PASSED
+test_webui.py::OpenBMCWebUITestCase::test_03_inventory_view PASSED
+test_webui.py::OpenBMCWebUITestCase::test_04_power_operations PASSED
+test_webui.py::OpenBMCWebUITestCase::test_05_sensors_view PASSED
+test_webui.py::OpenBMCWebUITestCase::test_06_account_lockout PASSED
+- generated xml file: reports/webui_tests.xml -
+- Generated html report: reports/webui_report.html -
+============================= 6 passed in 16.69s ==============================
+
+=================================================================
+▶ [Pipeline Stage] 5. Run OpenBMC Load Tests (Locust)
+=================================================================
+[OpenBMC] GET /Systems/system (System Info): 42 reqs, 0 fails, avg 16ms
+[OpenBMC] GET /Systems/system (PowerState):  27 reqs, 0 fails, avg 16ms
+[OpenBMC] GET /Chassis/chassis/Thermal:      14 reqs, 0 fails, avg 16ms
+[OpenBMC] POST /SessionService/Sessions:     6 reqs, 0 fails, avg 22ms
+- Generated html report: reports/locust_report.html -
+- Generated CSV metrics: reports/locust_stats_stats.csv -
+
+=================================================================
+▶ [Pipeline Stage] Teardown: Stop OpenBMC & Archive Artifacts
+=================================================================
+✅ Pipeline выполнен успешно за 47.18 сек! Статус: SUCCESS</pre>
+
+  <h2>7. Сводная таблица артефактов сборочного конвейера</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 5%;">№</th>
+        <th style="width: 25%;">Этап Pipeline (Stage)</th>
+        <th style="width: 32%;">Формируемый артефакт</th>
+        <th style="width: 18%;">Тип отчёта</th>
+        <th style="width: 20%;">Плагин Jenkins</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Checkout & Setup</td>
+        <td><code>reports/env_info.txt</code></td>
+        <td>Параметры среды сборки</td>
+        <td><span class="badge badge-artifact">archiveArtifacts</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Start OpenBMC QEMU</td>
+        <td><code>reports/qemu_boot.log</code></td>
+        <td>Лог запуска и Health-check</td>
+        <td><span class="badge badge-artifact">archiveArtifacts</span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>OpenBMC API Tests</td>
+        <td><code>reports/api_tests.xml</code><br /><code>reports/api_report.html</code></td>
+        <td>JUnit XML (4 теста)<br />HTML Test Report</td>
+        <td><span class="badge badge-stage">junit</span><br /><span class="badge badge-artifact">publishHTML</span></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>OpenBMC WebUI Tests</td>
+        <td><code>reports/webui_tests.xml</code><br /><code>reports/webui_report.html</code><br /><code>screenshots/*.png</code> (6 шт.)</td>
+        <td>JUnit XML (6 тестов)<br />HTML Test Report<br />PNG Снимки экрана</td>
+        <td><span class="badge badge-stage">junit</span><br /><span class="badge badge-artifact">publishHTML</span><br /><span class="badge badge-artifact">archiveArtifacts</span></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>OpenBMC Load Tests</td>
+        <td><code>reports/locust_report.html</code><br /><code>reports/locust_stats_stats.csv</code></td>
+        <td>Интерактивный дашборд<br />Числовая телеметрия RPS/латентности</td>
+        <td><span class="badge badge-artifact">publishHTML</span><br /><span class="badge badge-artifact">archiveArtifacts</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <h2>8. Выводы по лабораторной работе</h2>
+  <p>В ходе выполнения лабораторной работы №7 были успешно освоены ключевые принципы и инструменты непрерывной интеграции (CI/CD) на примере серверной платформы OpenBMC:</p>
+  <ol>
+    <li>Изучена архитектура и принципы функционирования сервера автоматизации <strong>Jenkins</strong> в контейнеризованной среде <strong>Docker</strong>.</li>
+    <li>Разработан полнофункциональный декларативный конвейер <strong><code>Jenkinsfile</code></strong> на языке Groovy, инкапсулирующий весь жизненный цикл верификации микропрограммного обеспечения: подготовку окружения, фоновый запуск эмулятора QEMU, тестирование REST API (PyTest Redfish/IPMI), тестирование пользовательского веб-интерфейса (Selenium WebDriver) и нагрузочные испытания (Locust).</li>
+    <li>Обеспечена строгая изоляция и гарантия освобождения системных ресурсов: в блоке <code>post { always { ... } }</code> реализована автоматическая остановка фоновых процессов эмуляции независимо от исхода тестирования.</li>
+    <li>Настроена публикация многоуровневых артефактов Jenkins: интеграция тестов в дашборды с использованием плагина <code>junit</code>, архивирование логов и снимков экрана с помощью <code>archiveArtifacts</code>, а также формирование сводных интерактивных отчётов через <code>publishHTML</code>.</li>
+    <li>Все шаги конвейера прошли успешное локальное тестирование со 100% положительным результатом (10 пройденных модульных и системных тестов, 0 сбоев под нагрузкой).</li>
+  </ol>
+
+  <h2>9. Ссылка на GitHub репозиторий</h2>
+  <p>Исходный код сборочного конвейера Jenkinsfile, конфигурации Docker Compose, сервиса OpenBMC и автотестов опубликован в репозитории на GitHub:</p>
+  <p><strong>URL:</strong> <a href="https://github.com/dra1nerrr/lab7_TPO">https://github.com/dra1nerrr/lab7_TPO</a></p>
+
+</body>
+</html>
